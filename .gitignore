@@ -4,6 +4,9 @@ node_modules/
 # Variables de entorno
 .env
 
+# Logs de la aplicación (Winston)
+logs/
+
 # Logs
 npm-debug.log*
 *.log

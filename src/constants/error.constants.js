@@ -22,6 +22,9 @@ export const ERROR_CODES = {
     INVALID_MOCK_QUANTITY: 'INVALID_MOCK_QUANTITY',
     MOCK_GENERATION_FAILED: 'MOCK_GENERATION_FAILED',
 
+    // Rutas
+    ROUTE_NOT_FOUND: 'ROUTE_NOT_FOUND',
+
     // Genéricos
     VALIDATION_ERROR: 'VALIDATION_ERROR',
     FORBIDDEN: 'FORBIDDEN',
@@ -84,6 +87,12 @@ export const ERROR_DICTIONARY = {
     [ERROR_CODES.MOCK_GENERATION_FAILED]: {
         statusCode: 500,
         message: 'Ocurrió un error al generar o insertar los datos de prueba'
+    },
+
+    // Rutas
+    [ERROR_CODES.ROUTE_NOT_FOUND]: {
+        statusCode: 404,
+        message: 'La ruta solicitada no existe'
     },
 
     // Genéricos

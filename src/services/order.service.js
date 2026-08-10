@@ -4,6 +4,7 @@ import Order from '../models/order.model.js'
 import User from '../models/user.model.js'
 import { customError } from '../utils/customError.js'
 import { ERROR_CODES } from '../constants/error.constants.js'
+import logger from '../utils/logger.js'
 
 export const orderService = {
 
@@ -53,6 +54,8 @@ export const orderService = {
         // Simulación de side-effects (no son errores de negocio, se mantienen igual)
         console.log(`[EMAIL SIMULADO] Enviando confirmación al usuario ${customer}...`)
         console.log(`[EMAIL SIMULADO] Tu pedido ${newOrder._id} fue creado. Total: $${total}`)
+
+        logger.info(`Pedido creado: ${newOrder._id} (cliente: ${customer}, total: $${total})`)
 
         const shippingCost = newOrder.items.reduce((acc, item) => acc + (item.quantity * 10), 0)
 

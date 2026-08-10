@@ -7,6 +7,7 @@ import Order from '../models/order.model.js'
 import Delivery from '../models/delivery.model.js'
 import { customError } from '../utils/customError.js'
 import { ERROR_CODES } from '../constants/error.constants.js'
+import logger from '../utils/logger.js'
 
 const USER_ROLES = ['admin', 'customer', 'driver', 'store']
 const ORDER_STATUSES = ['created', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled']
@@ -26,6 +27,7 @@ function parseCount(raw, fieldName, defaultValue = 10) {
     const num = Number(raw)
 
     if (!Number.isInteger(num) || num <= 0) {
+        logger.warning(`Cantidad inválida recibida en "${fieldName}": "${raw}"`)
         throw new customError(
             ERROR_CODES.INVALID_MOCK_QUANTITY,
             `El parámetro "${fieldName}" debe ser un número entero mayor a 0 (recibido: "${raw}")`
@@ -148,15 +150,20 @@ export const mocksService = {
                 await Order.findByIdAndUpdate(order._id, { delivery: createdDelivery._id })
             }
 
-            return {
+            const result = {
                 usersCreated: createdUsers.length,
                 ordersCreated: createdOrders.length,
                 deliveriesCreated: createdDeliveries.length
             }
+
+            logger.info(`Datos de prueba generados: ${result.usersCreated} usuarios, ${result.ordersCreated} pedidos, ${result.deliveriesCreated} entregas`)
+
+            return result
         } catch (error) {
             // Cualquier falla real de Mongo/Mongoose durante la carga
             // masiva se traduce a un error de dominio controlado,
             // en vez de tirar un 500 crudo con el stack de Mongoose.
+            logger.error(`Falló la generación/carga de datos de prueba: ${error.message}`)
             throw new customError(
                 ERROR_CODES.MOCK_GENERATION_FAILED,
                 `Falló la generación/carga de datos de prueba: ${error.message}`
