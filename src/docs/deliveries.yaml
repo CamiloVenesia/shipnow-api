@@ -1,0 +1,193 @@
+paths:
+  /api/deliveries:
+    get:
+      summary: Obtener todas las entregas
+      tags:
+        - Deliveries
+      responses:
+        "200":
+          description: Lista de entregas obtenida correctamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Delivery'
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Crear una nueva entrega
+      tags:
+        - Deliveries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - order
+                - driver
+              properties:
+                order:
+                  type: string
+                  description: ID del pedido a entregar
+                  example: 665f4d0a8f9a1b005678efgh
+                driver:
+                  type: string
+                  description: ID del usuario repartidor (debe tener role driver)
+                  example: 665f4d0a8f9a1b001234mnop
+                priority:
+                  type: string
+                  enum: [low, normal, high]
+                  example: normal
+      responses:
+        "201":
+          description: Entrega creada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delivery'
+        "400":
+          description: Faltan datos obligatorios (pedido o repartidor) o el usuario indicado no tiene rol driver
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: El pedido o el repartidor indicado no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: El pedido ya fue asignado o procesado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/deliveries/{did}:
+    get:
+      summary: Obtener una entrega por ID
+      tags:
+        - Deliveries
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: ID de la entrega
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Entrega obtenida correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delivery'
+        "404":
+          description: Entrega no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Eliminar una entrega por ID
+      tags:
+        - Deliveries
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: ID de la entrega
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Entrega eliminada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        "404":
+          description: Entrega no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/deliveries/{did}/status:
+    patch:
+      summary: Actualizar el estado de una entrega
+      tags:
+        - Deliveries
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: ID de la entrega
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [pending, assigned, in_transit, delivered]
+                  example: delivered
+      responses:
+        "200":
+          description: Estado de la entrega actualizado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delivery'
+        "404":
+          description: Entrega no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: La entrega ya fue completada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

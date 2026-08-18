@@ -51,9 +51,9 @@ export const orderService = {
             status: 'created'
         })
 
-        // Simulación de side-effects (no son errores de negocio, se mantienen igual)
-        console.log(`[EMAIL SIMULADO] Enviando confirmación al usuario ${customer}...`)
-        console.log(`[EMAIL SIMULADO] Tu pedido ${newOrder._id} fue creado. Total: $${total}`)
+        // Simulación de side-effects
+        logger.info(`[EMAIL SIMULADO] Enviando confirmación al usuario ${customer}...`)
+        logger.info(`[EMAIL SIMULADO] Tu pedido ${newOrder._id} fue creado. Total: $${total}`)
 
         logger.info(`Pedido creado: ${newOrder._id} (cliente: ${customer}, total: $${total})`)
 
@@ -79,7 +79,7 @@ export const orderService = {
         order.status = status
         await order.save()
 
-        console.log(`Pedido ${order._id} actualizado a estado: ${status}`)
+        logger.info(`Pedido ${order._id} actualizado a estado: ${status}`)
 
         return order
     },

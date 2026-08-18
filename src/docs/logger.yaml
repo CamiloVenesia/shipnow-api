@@ -1,0 +1,26 @@
+paths:
+  /api/loggerTest:
+    get:
+      summary: Probar los niveles del logger (herramienta de diagnóstico interno)
+      description: Este endpoint no representa una funcionalidad de negocio. Genera un log de cada nivel configurado (debug, http, info, warning, error, fatal) para verificar que la configuración de Winston funciona correctamente. Los niveles visibles en consola dependen del entorno (NODE_ENV), y solo error/fatal quedan persistidos en archivo.
+      tags:
+        - Logger
+      responses:
+        "200":
+          description: Logs generados correctamente en todos los niveles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: "Se generó un log de cada nivel: debug, http, info, warning, error, fatal"
+                  levels:
+                    type: array
+                    items:
+                      type: string
+                    example: [debug, http, info, warning, error, fatal]

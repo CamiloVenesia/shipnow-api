@@ -1,0 +1,196 @@
+paths:
+  /api/mocks/mockingusers:
+    get:
+      summary: Generar usuarios simulados (no persiste en la base)
+      tags:
+        - Mocks
+      parameters:
+        - name: count
+          in: query
+          required: false
+          description: Cantidad de usuarios a generar. Debe ser un entero mayor a 0. Si no se envía, usa 10 por defecto.
+          schema:
+            type: integer
+            example: 5
+      responses:
+        "200":
+          description: Usuarios simulados generados correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  count:
+                    type: integer
+                    example: 5
+                  payload:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+        "400":
+          description: La cantidad solicitada no es un entero mayor a 0
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/mocks/mockingorders:
+    get:
+      summary: Generar pedidos simulados (no persiste en la base)
+      tags:
+        - Mocks
+      parameters:
+        - name: count
+          in: query
+          required: false
+          description: Cantidad de pedidos a generar. Debe ser un entero mayor a 0. Si no se envía, usa 10 por defecto.
+          schema:
+            type: integer
+            example: 5
+      responses:
+        "200":
+          description: Pedidos simulados generados correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  count:
+                    type: integer
+                    example: 5
+                  payload:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+        "400":
+          description: La cantidad solicitada no es un entero mayor a 0
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/mocks/mockingdeliveries:
+    get:
+      summary: Generar entregas simuladas (no persiste en la base)
+      tags:
+        - Mocks
+      parameters:
+        - name: count
+          in: query
+          required: false
+          description: Cantidad de entregas a generar. Debe ser un entero mayor a 0. Si no se envía, usa 10 por defecto.
+          schema:
+            type: integer
+            example: 5
+      responses:
+        "200":
+          description: Entregas simuladas generadas correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  count:
+                    type: integer
+                    example: 5
+                  payload:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Delivery'
+        "400":
+          description: La cantidad solicitada no es un entero mayor a 0
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/mocks/generateData:
+    post:
+      summary: Generar y persistir datos de prueba reales en MongoDB
+      description: Inserta usuarios, pedidos y entregas en la base de datos, respetando las relaciones entre entidades (usuario → pedido → entrega).
+      tags:
+        - Mocks
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                users:
+                  type: integer
+                  description: Cantidad de usuarios a crear. Entero mayor a 0. Default 10.
+                  example: 10
+                orders:
+                  type: integer
+                  description: Cantidad de pedidos a crear. Entero mayor a 0. Default 10.
+                  example: 15
+                deliveries:
+                  type: integer
+                  description: Cantidad de entregas a crear. Entero mayor a 0. Default 10.
+                  example: 15
+      responses:
+        "201":
+          description: Datos de prueba generados e insertados correctamente en MongoDB
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Datos de prueba generados y guardados en MongoDB
+                  payload:
+                    type: object
+                    properties:
+                      usersCreated:
+                        type: integer
+                        example: 10
+                      ordersCreated:
+                        type: integer
+                        example: 15
+                      deliveriesCreated:
+                        type: integer
+                        example: 15
+        "400":
+          description: Alguna de las cantidades enviadas (users, orders o deliveries) no es un entero mayor a 0
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Falló la generación o inserción de los datos de prueba en MongoDB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

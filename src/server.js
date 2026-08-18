@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
+import swaggerUi from 'swagger-ui-express';
 
 import usersRouter from './routes/users.routes.js';
 import loggerTestRouter from './routes/logger.routes.js';
@@ -9,8 +10,10 @@ import deliveriesRouter from './routes/deliveries.routes.js';
 import productsRouter from './routes/products.routes.js';
 import mocksRouter from './routes/mocks.routes.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { basicAuth } from './middleware/basicAuth.js';
 import { customError } from './utils/customError.js';
 import { ERROR_CODES } from './constants/error.constants.js';
+import { swaggerSpec } from './docs/swagger.config.js';
 import logger from './utils/logger.js';
 
 const app = express();
@@ -18,6 +21,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use('/api/docs', basicAuth, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use('/api/users', usersRouter);
 app.use('/api/loggerTest', loggerTestRouter);

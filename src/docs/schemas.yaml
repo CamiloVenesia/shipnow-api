@@ -1,0 +1,140 @@
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+        error:
+          type: string
+          example: USER_NOT_FOUND
+        message:
+          type: string
+          example: Usuario no encontrado
+
+    SuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+          example: Operación realizada correctamente
+
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 665f4d0a8f9a1b001234abcd
+        firstName:
+          type: string
+          example: Ana
+        lastName:
+          type: string
+          example: Perez
+        email:
+          type: string
+          example: ana@mail.com
+        password:
+          type: string
+          example: "********"
+        role:
+          type: string
+          enum: [admin, customer, driver, store]
+          example: customer
+        documents:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              reference:
+                type: string
+
+    OrderItem:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Auriculares Bluetooth
+        quantity:
+          type: integer
+          example: 2
+        price:
+          type: number
+          example: 1500
+
+    Order:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 665f4d0a8f9a1b005678efgh
+        customer:
+          type: string
+          description: ID del usuario que realizó el pedido
+          example: 665f4d0a8f9a1b001234abcd
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        deliveryAddress:
+          type: string
+          example: Av. Siempre Viva 742
+        total:
+          type: number
+          example: 3000
+        status:
+          type: string
+          enum: [created, assigned, picked_up, in_transit, delivered, cancelled]
+          example: created
+        priority:
+          type: string
+          enum: [low, normal, high]
+          example: normal
+        delivery:
+          type: string
+          nullable: true
+          description: ID de la entrega asociada, si existe
+          example: null
+
+    Delivery:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 665f4d0a8f9a1b009876ijkl
+        order:
+          type: string
+          description: ID del pedido asociado
+          example: 665f4d0a8f9a1b005678efgh
+        driver:
+          type: string
+          nullable: true
+          description: ID del repartidor asignado
+          example: 665f4d0a8f9a1b001234mnop
+        status:
+          type: string
+          enum: [pending, assigned, in_transit, delivered]
+          example: assigned
+        priority:
+          type: string
+          enum: [low, normal, high]
+          example: normal
+        assignedAt:
+          type: string
+          format: date-time
+          nullable: true
+        deliveredAt:
+          type: string
+          format: date-time
+          nullable: true

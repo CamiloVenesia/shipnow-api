@@ -5,6 +5,7 @@ import Order from '../models/order.model.js'
 import User from '../models/user.model.js'
 import { customError } from '../utils/customError.js'
 import { ERROR_CODES } from '../constants/error.constants.js'
+import logger from '../utils/logger.js'
 
 export const deliveryService = {
 
@@ -59,7 +60,7 @@ export const deliveryService = {
             delivery: newDelivery._id
         })
 
-        console.log(`Entrega ${newDelivery._id} creada para el pedido ${order}`)
+        logger.info(`Entrega ${newDelivery._id} creada para el pedido ${order}`)
 
         return newDelivery
     },
@@ -83,7 +84,7 @@ export const deliveryService = {
 
         await delivery.save()
 
-        console.log(`Entrega ${delivery._id} actualizada a: ${status}`)
+        logger.info(`Entrega ${delivery._id} actualizada a: ${status}`)
 
         return delivery
     },
