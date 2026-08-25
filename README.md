@@ -1,8 +1,8 @@
-# ShipNow API — Módulo 5: Documentación con Swagger
+# ShipNow API — Módulo 6: Testing funcional con Mocha, Chai y Supertest
 
 API de gestión de envíos (**ShipNow**) construida con Node.js, Express y MongoDB (Mongoose), siguiendo una arquitectura por capas: **rutas → servicios → modelos**.
 
-Este módulo incorpora **documentación interactiva con Swagger/OpenAPI**, exponiendo una interfaz donde se puede consultar y probar en vivo cada endpoint de la API, organizada por módulos con schemas reutilizables y errores documentados según el sistema real de manejo de errores del proyecto.
+Este módulo incorpora una **suite de tests funcionales automatizados** con Mocha, Chai y Supertest, que valida los endpoints principales de la API (usuarios, pedidos, mocks, logger y documentación Swagger) cubriendo tanto casos exitosos como errores esperados, sobre una base de datos de testing completamente separada de la de desarrollo.
 
 ## Instalación
 
@@ -10,14 +10,15 @@ Este módulo incorpora **documentación interactiva con Swagger/OpenAPI**, expon
 npm install
 \`\`\`
 
-El proyecto no usa variables de entorno para la configuración de base/puerto; están definidas directamente en `src/server.js`:
+El proyecto no usa variables de entorno para la configuración de base/puerto en desarrollo; están definidas directamente en `src/server.js`:
 
 - Puerto: `3000`
-- MongoDB: `mongodb://localhost:27017/shipnow`
+- MongoDB (desarrollo): `mongodb://localhost:27017/shipnow`
+- MongoDB (testing): `mongodb://localhost:27017/shipnow-test` (definida en `tests/setup.js`)
 
-Asegurate de tener MongoDB corriendo localmente antes de levantar el servidor.
+Asegurate de tener el servicio de MongoDB corriendo localmente (generalmente arranca solo como servicio de Windows) antes de levantar el servidor o correr los tests.
 
-La variable `NODE_ENV` sigue usándose para diferenciar el comportamiento del logger entre desarrollo y producción (ver Módulo 4).
+La variable `NODE_ENV` se usa para dos cosas: diferenciar el comportamiento del logger entre desarrollo y producción (ver Módulo 4), y activarse automáticamente en `test` al correr la suite de tests.
 
 ## Levantar el servidor
 
@@ -32,6 +33,71 @@ Si todo está bien configurado, la terminal debería mostrar:
 2026-08-10 19:09:09 [info]    Servidor ShipNow escuchando en el puerto 3000
 \`\`\`
 
+## Testing
+
+### Herramientas utilizadas
+
+- **Mocha**: organiza y ejecuta la suite de tests (`describe` / `it`).
+- **Chai**: librería de aserciones para validar respuestas (`expect`).
+- **Supertest**: permite hacer requests HTTP directas contra la app de Express sin necesidad de levantar un puerto real.
+
+### Separación de la app y el servidor
+
+Para que los tests puedan importar la API sin abrir manualmente un puerto, `src/app.js` contiene toda la configuración de Express (rutas, middlewares, Swagger, manejo de errores) y la exporta. `src/server.js` es un archivo mínimo que importa esa app, conecta a MongoDB y recién ahí llama a `app.listen()`. Los tests importan directamente `src/app.js` y usan Supertest para simular requests HTTP en memoria.
+
+### Entorno de testing separado
+
+Los tests corren contra una base de datos **completamente distinta** a la de desarrollo:
+
+\`\`\`
+mongodb://localhost:27017/shipnow-test
+\`\`\`
+
+Esto está configurado en `tests/setup.js`, que además:
+
+- Se conecta a esa base antes de correr cualquier test (`before`).
+- Limpia todas las colecciones (`User`, `Order`, `Delivery`, `Product`) antes de **cada** test individual (`beforeEach`), para que ningún test dependa del estado dejado por otro.
+- Limpia todo y cierra la conexión al finalizar la suite completa (`after`).
+
+De esta forma, correr `npm test` **nunca** toca ni borra los datos de tu base de desarrollo (`shipnow`).
+
+### Cómo ejecutar los tests
+
+\`\`\`bash
+npm test
+\`\`\`
+
+Esto corre:
+
+\`\`\`bash
+cross-env NODE_ENV=test mocha --exit tests/setup.js tests/**/*.test.js
+\`\`\`
+
+Salida esperada (resumen):
+
+\`\`\`
+25 passing (388ms)
+\`\`\`
+
+### Módulos cubiertos
+
+| Archivo | Cubre |
+|---|---|
+| `tests/users.test.js` | Listar usuarios, crear usuario válido, validación de datos, restricción de rol admin, usuario no encontrado |
+| `tests/orders.test.js` | Listar pedidos, crear pedido válido (con cálculo de total), validaciones, restricción de rol driver, consulta por ID, actualización de estado, regla de negocio (pedido ya entregado) |
+| `tests/mocks.test.js` | Generación de usuarios simulados, validación de cantidades inválidas (texto y negativos), generación y persistencia real de datos de prueba en MongoDB |
+| `tests/logger.test.js` | Endpoint de diagnóstico del logger, generación de los 6 niveles |
+| `tests/docs.test.js` | Acceso a Swagger UI: rechazo sin credenciales (401) y acceso correcto con `basicAuth` (200) |
+| `tests/routes.test.js` | Ruta inexistente → 404 con formato de error estándar |
+
+### Qué valida cada test
+
+Cada test no solo confirma el status HTTP: también valida la **estructura del body** de la respuesta (propiedades presentes, valores calculados como el `total` de un pedido, arrays con la longitud esperada, códigos de error específicos del diccionario de `ERROR_CODES`, etc.), en lugar de limitarse a comprobar que el endpoint "responde" o "falla".
+
+### Datos de prueba
+
+Todos los datos usados en los tests son generados **dentro del propio test** (usuarios, pedidos, etc.), nunca dependen de datos cargados manualmente en la base. Por ejemplo, antes de testear la creación de un pedido, el test crea primero un usuario `customer` real en la base de testing.
+
 ## Documentación interactiva (Swagger)
 
 ### Acceso
@@ -42,7 +108,7 @@ La documentación está disponible en:
 http://localhost:3000/api/docs
 \`\`\`
 
-Esta ruta está protegida con **autenticación básica** (usuario y contraseña), para evitar exponerla libremente:
+Esta ruta está protegida con **autenticación básica** (usuario y contraseña):
 
 - **Usuario:** `dev`
 - **Contraseña:** `shipnow123`
@@ -90,8 +156,6 @@ src/docs/
 └── logger.yaml          # Documentación de /api/loggerTest
 \`\`\`
 
-La configuración de Swagger vive completamente separada de las rutas: ningún archivo de `src/routes/` tiene lógica ni anotaciones de documentación. Todo el contenido de Swagger se arma desde los `.yaml` de `src/docs/`, que `swagger-jsdoc` lee automáticamente (`apis: ['./src/docs/**/*.yaml']` en `swagger.config.js`).
-
 ## Manejo de errores
 
 ### Estructura de respuesta uniforme
@@ -130,130 +194,4 @@ Toda respuesta de error de la API, sin importar en qué endpoint ocurra, tiene s
 | `MOCK_GENERATION_FAILED` | 500 | Falla al generar o insertar datos de prueba en MongoDB |
 | `ROUTE_NOT_FOUND` | 404 | La ruta solicitada no existe |
 | `VALIDATION_ERROR` | 400 | Faltan datos obligatorios o el formato es inválido |
-| `FORBIDDEN` | 403 | Acción no permitida para el rol del usuario |
-| `DATABASE_ERROR` | 500 | Error al interactuar con la base de datos |
-| `INTERNAL_SERVER_ERROR` | 500 | Error inesperado no controlado |
-
-## Logging con Winston
-
-El proyecto usa **Winston** con **`winston-daily-rotate-file`** como logger centralizado (`src/utils/logger.js`), con 6 niveles: `debug`, `http`, `info`, `warning`, `error`, `fatal`. Se usa en `server.js`, `errorHandler.js`, y en **todos los `services`** (mocks, orders, deliveries) — no quedan `console.log` sueltos en ninguna parte del proyecto.
-
-- **Desarrollo**: consola muestra todos los niveles.
-- **Producción** (`NODE_ENV=production`): consola muestra solo desde `info`.
-- **Persistencia**: `error` y `fatal` se guardan en `logs/errors-FECHA.log`, con rotación diaria y retención de 14 días. La carpeta `logs/` está en `.gitignore`.
-
-Endpoint de diagnóstico (documentado en Swagger bajo la tag **Logger**, no es funcionalidad de negocio):
-
-\`\`\`
-GET /api/loggerTest
-\`\`\`
-
-## Cómo probar casos inválidos en Postman
-
-### 1. Recurso inexistente → 404
-
-\`\`\`
-GET http://localhost:3000/api/orders/64b000000000000000000000
-\`\`\`
-\`\`\`json
-{
-  "status": "error",
-  "error": "ORDER_NOT_FOUND",
-  "message": "Pedido no encontrado"
-}
-\`\`\`
-
-### 2. Datos obligatorios faltantes → 400
-
-\`\`\`
-POST http://localhost:3000/api/orders
-Content-Type: application/json
-
-{ "customer": "64b000000000000000000000" }
-\`\`\`
-\`\`\`json
-{
-  "status": "error",
-  "error": "VALIDATION_ERROR",
-  "message": "Faltan los items del pedido"
-}
-\`\`\`
-
-### 3. Regla de negocio violada → 409
-
-\`\`\`
-PATCH http://localhost:3000/api/orders/{id-de-un-pedido-ya-entregado}/status
-Content-Type: application/json
-
-{ "status": "created" }
-\`\`\`
-\`\`\`json
-{
-  "status": "error",
-  "error": "ORDER_ALREADY_DELIVERED",
-  "message": "El pedido ya fue entregado y no puede modificarse"
-}
-\`\`\`
-
-### 4. Mocks — cantidad inválida (texto en vez de número) → 400
-
-\`\`\`
-GET http://localhost:3000/api/mocks/mockingusers?count=abc
-\`\`\`
-\`\`\`json
-{
-  "status": "error",
-  "error": "INVALID_MOCK_QUANTITY",
-  "message": "El parámetro \"count\" debe ser un número entero mayor a 0 (recibido: \"abc\")"
-}
-\`\`\`
-
-### 5. Mocks — cantidad negativa o cero → 400
-
-\`\`\`
-POST http://localhost:3000/api/mocks/generateData
-Content-Type: application/json
-
-{ "users": 0, "orders": 5, "deliveries": 5 }
-\`\`\`
-\`\`\`json
-{
-  "status": "error",
-  "error": "INVALID_MOCK_QUANTITY",
-  "message": "El parámetro \"users\" debe ser un número entero mayor a 0 (recibido: \"0\")"
-}
-\`\`\`
-
-### 6. ID con formato inválido (no ObjectId de Mongo) → 400
-
-\`\`\`
-GET http://localhost:3000/api/products/no-es-un-id-valido
-\`\`\`
-\`\`\`json
-{
-  "status": "error",
-  "error": "VALIDATION_ERROR",
-  "message": "El identificador proporcionado no es válido"
-}
-\`\`\`
-
-### 7. Ruta inexistente → 404
-
-\`\`\`
-GET http://localhost:3000/api/blabla
-\`\`\`
-\`\`\`json
-{
-  "status": "error",
-  "error": "ROUTE_NOT_FOUND",
-  "message": "La ruta GET /api/blabla no existe"
-}
-\`\`\`
-
-### 8. Endpoint de prueba del logger → 200
-
-\`\`\`
-GET http://localhost:3000/api/loggerTest
-\`\`\`
-
-Revisar la terminal para confirmar que aparecen los 6 niveles (en desarrollo) o 4 niveles (en producción).
+| `FORBIDDEN` | 403 |
