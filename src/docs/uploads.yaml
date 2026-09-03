@@ -1,0 +1,158 @@
+paths:
+  /api/users/{uid}/documents:
+    post:
+      summary: Cargar un documento de un usuario (DNI, licencia, comprobante de domicilio, etc.)
+      tags:
+        - Users
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          description: ID del usuario
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - document
+              properties:
+                document:
+                  type: string
+                  format: binary
+                  description: Archivo a subir (JPG, PNG o PDF, máximo 5MB)
+                documentType:
+                  type: string
+                  enum: [dni, licencia_conducir, comprobante_domicilio, otro]
+                  description: Tipo de documento. Si no se envía, se guarda como "otro"
+                  example: dni
+      responses:
+        "201":
+          description: Documento cargado y asociado al usuario correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        "400":
+          description: Falta el archivo, el tipo de archivo no está permitido, o el tipo de documento es inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: El usuario indicado no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Error al guardar el archivo en el servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/orders/{oid}/receipt:
+    post:
+      summary: Cargar un comprobante asociado a un pedido
+      tags:
+        - Orders
+      parameters:
+        - name: oid
+          in: path
+          required: true
+          description: ID del pedido
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - receipt
+              properties:
+                receipt:
+                  type: string
+                  format: binary
+                  description: Archivo del comprobante (JPG, PNG o PDF, máximo 5MB)
+      responses:
+        "201":
+          description: Comprobante cargado y asociado al pedido correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        "400":
+          description: Falta el archivo o el tipo de archivo no está permitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: El pedido indicado no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Error al guardar el archivo en el servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/deliveries/{did}/receipt:
+    post:
+      summary: Cargar un comprobante asociado a una entrega
+      tags:
+        - Deliveries
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: ID de la entrega
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - receipt
+              properties:
+                receipt:
+                  type: string
+                  format: binary
+                  description: Archivo del comprobante (JPG, PNG o PDF, máximo 5MB)
+      responses:
+        "201":
+          description: Comprobante cargado y asociado a la entrega correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delivery'
+        "400":
+          description: Falta el archivo o el tipo de archivo no está permitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: La entrega indicada no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Error al guardar el archivo en el servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

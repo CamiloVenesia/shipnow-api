@@ -95,5 +95,31 @@ export const deliveryService = {
             throw new customError(ERROR_CODES.DELIVERY_NOT_FOUND)
         }
         return delivery
+    },
+
+    async addReceipt(did, file) {
+        if (!file) {
+            throw new customError(ERROR_CODES.FILE_REQUIRED, 'Debe adjuntar un archivo (campo "receipt")')
+        }
+
+        const delivery = await Delivery.findById(did)
+        if (!delivery) {
+            throw new customError(ERROR_CODES.DELIVERY_NOT_FOUND)
+        }
+
+        delivery.receipt = {
+            originalName: file.originalname,
+            generatedName: file.filename,
+            path: file.path,
+            mimetype: file.mimetype,
+            size: file.size,
+            uploadedAt: new Date()
+        }
+
+        await delivery.save()
+
+        logger.info(`Comprobante asociado a la entrega ${did}: ${file.originalname}`)
+
+        return delivery
     }
 }

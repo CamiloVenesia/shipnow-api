@@ -14,3 +14,5 @@ npm-debug.log*
 # Sistema operativo / editor
 .DS_Store
 .vscode/
+
+uploads/

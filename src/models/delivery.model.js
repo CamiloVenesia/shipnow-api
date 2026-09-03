@@ -28,6 +28,17 @@ const deliverySchema = new mongoose.Schema({
   deliveredAt: {
     type: Date,
     default: null
+  },
+  receipt: {
+    type: {
+        originalName: { type: String },
+        generatedName: { type: String },
+        path: { type: String },
+        mimetype: { type: String },
+        size: { type: Number },
+        uploadedAt: { type: Date }
+    },
+    default: null
   }
 }, {
   timestamps: true

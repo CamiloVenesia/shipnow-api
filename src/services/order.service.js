@@ -90,5 +90,31 @@ export const orderService = {
             throw new customError(ERROR_CODES.ORDER_NOT_FOUND)
         }
         return order
+    },
+
+    async addReceipt(oid, file) {
+        if (!file) {
+            throw new customError(ERROR_CODES.FILE_REQUIRED, 'Debe adjuntar un archivo (campo "receipt")')
+        }
+
+        const order = await Order.findById(oid)
+        if (!order) {
+            throw new customError(ERROR_CODES.ORDER_NOT_FOUND)
+        }
+
+        order.receipt = {
+            originalName: file.originalname,
+            generatedName: file.filename,
+            path: file.path,
+            mimetype: file.mimetype,
+            size: file.size,
+            uploadedAt: new Date()
+        }
+
+        await order.save()
+
+        logger.info(`Comprobante asociado al pedido ${oid}: ${file.originalname}`)
+
+        return order
     }
 }

@@ -29,10 +29,15 @@ const userSchema = new mongoose.Schema({
   },
   documents: {
     type: [
-      {
-        name: { type: String },
-        reference: { type: String }
-      }
+        {
+            documentType: { type: String, enum: ['dni', 'licencia_conducir', 'comprobante_domicilio', 'otro'] },
+            originalName: { type: String },
+            generatedName: { type: String },
+            path: { type: String },
+            mimetype: { type: String },
+            size: { type: Number },
+            uploadedAt: { type: Date, default: Date.now }
+        }
     ],
     default: []
   }

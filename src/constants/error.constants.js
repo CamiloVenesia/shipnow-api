@@ -29,7 +29,14 @@ export const ERROR_CODES = {
     VALIDATION_ERROR: 'VALIDATION_ERROR',
     FORBIDDEN: 'FORBIDDEN',
     DATABASE_ERROR: 'DATABASE_ERROR',
-    INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR'
+    INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
+
+    // Archivos
+    FILE_REQUIRED: 'FILE_REQUIRED',
+    INVALID_FILE_TYPE: 'INVALID_FILE_TYPE',
+    FILE_TOO_LARGE: 'FILE_TOO_LARGE',
+    INVALID_DOCUMENT_TYPE: 'INVALID_DOCUMENT_TYPE',
+    FILE_UPLOAD_ERROR: 'FILE_UPLOAD_ERROR'
 }
 
 Object.freeze(ERROR_CODES)
@@ -111,5 +118,27 @@ export const ERROR_DICTIONARY = {
     [ERROR_CODES.INTERNAL_SERVER_ERROR]: {
         statusCode: 500,
         message: 'Error interno del servidor'
+    },
+
+    // Archivos
+    [ERROR_CODES.FILE_REQUIRED]: {
+        statusCode: 400,
+        message: 'Se requiere un archivo para esta operación'
+    },
+    [ERROR_CODES.INVALID_FILE_TYPE]: {
+        statusCode: 400,
+        message: 'El tipo de archivo no está permitido'
+    },
+    [ERROR_CODES.FILE_TOO_LARGE]: {
+        statusCode: 400,
+        message: 'El archivo supera el tamaño máximo permitido'
+    },
+    [ERROR_CODES.INVALID_DOCUMENT_TYPE]: {
+        statusCode: 400,
+        message: 'El tipo de documento indicado no es válido'
+    },
+    [ERROR_CODES.FILE_UPLOAD_ERROR]: {
+        statusCode: 500,
+        message: 'Ocurrió un error al guardar el archivo'
     }
 }

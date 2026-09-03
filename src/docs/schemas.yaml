@@ -28,6 +28,57 @@ components:
           type: string
           example: Operación realizada correctamente
 
+    DocumentMeta:
+      type: object
+      properties:
+        documentType:
+          type: string
+          enum: [dni, licencia_conducir, comprobante_domicilio, otro]
+          example: dni
+        originalName:
+          type: string
+          example: dni.pdf
+        generatedName:
+          type: string
+          example: "1725390000000-123456789.pdf"
+        path:
+          type: string
+          example: uploads/users/documents/1725390000000-123456789.pdf
+        mimetype:
+          type: string
+          example: application/pdf
+        size:
+          type: integer
+          description: Tamaño del archivo en bytes
+          example: 204800
+        uploadedAt:
+          type: string
+          format: date-time
+
+    ReceiptMeta:
+      type: object
+      nullable: true
+      properties:
+        originalName:
+          type: string
+          example: comprobante.jpg
+        generatedName:
+          type: string
+          example: "1725390000000-987654321.jpg"
+        path:
+          type: string
+          example: uploads/orders/receipts/1725390000000-987654321.jpg
+        mimetype:
+          type: string
+          example: image/jpeg
+        size:
+          type: integer
+          description: Tamaño del archivo en bytes
+          example: 102400
+        uploadedAt:
+          type: string
+          format: date-time
+
     User:
       type: object
       properties:
@@ -53,12 +104,7 @@ components:
         documents:
           type: array
           items:
-            type: object
-            properties:
-              name:
-                type: string
-              reference:
-                type: string
+            $ref: '#/components/schemas/DocumentMeta'
 
     OrderItem:
       type: object
@@ -106,6 +152,8 @@ components:
           nullable: true
           description: ID de la entrega asociada, si existe
           example: null
+        receipt:
+          $ref: '#/components/schemas/ReceiptMeta'
 
     Delivery:
       type: object
@@ -138,3 +186,5 @@ components:
           type: string
           format: date-time
           nullable: true
+        receipt:
+          $ref: '#/components/schemas/ReceiptMeta'

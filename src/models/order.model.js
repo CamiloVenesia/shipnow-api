@@ -52,6 +52,17 @@ const orderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Delivery',
     default: null
+  },
+  receipt: {
+    type: {
+        originalName: { type: String },
+        generatedName: { type: String },
+        path: { type: String },
+        mimetype: { type: String },
+        size: { type: Number },
+        uploadedAt: { type: Date }
+    },
+    default: null
   }
 }, {
   timestamps: true
