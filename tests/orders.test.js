@@ -24,8 +24,11 @@ describe('Orders API', () => {
             const response = await request(app).get('/api/orders');
 
             expect(response.status).to.equal(200);
-            expect(response.body).to.be.an('array');
-            expect(response.body).to.have.length(0);
+            expect(response.body).to.have.property('items');
+            expect(response.body.items).to.be.an('array');
+            expect(response.body.items).to.have.length(0);
+            expect(response.body).to.have.property('page', 1);
+            expect(response.body).to.have.property('total', 0);
         });
     });
 

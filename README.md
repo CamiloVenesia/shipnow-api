@@ -1,169 +1,185 @@
-# ShipNow API — Módulo 7: Carga de archivos, documentos y comprobantes
+# ShipNow API — Módulo 8: Performance, escalabilidad y Docker
 
 API de gestión de envíos (**ShipNow**) construida con Node.js, Express y MongoDB (Mongoose), siguiendo una arquitectura por capas: **rutas → servicios → modelos**.
 
-Este módulo incorpora **carga de archivos con Multer**: documentos de usuario (DNI, licencia, comprobante de domicilio) y comprobantes asociados a pedidos y entregas. Los archivos se guardan en el servidor organizados por carpetas, y en la base de datos solo se persisten sus **metadatos** (nunca el archivo en sí). Todo el flujo está integrado con el sistema de errores, logging, Swagger y testing de módulos anteriores.
+Este módulo prepara el proyecto para un entorno más cercano a producción: paginación en los listados principales, configuración por variables de entorno con validación al arranque, un endpoint de health check, un criterio explícito sobre la exposición de endpoints internos según el entorno, y contenerización completa con Docker.
 
-## Instalación
+## Variables de entorno
+
+El proyecto usa un archivo `.env` en la raíz (no se sube al repo). Como plantilla, usá `.env.example`:
+
+| Variable | Descripción | Ejemplo |
+|---|---|---|
+| `PORT` | Puerto en el que escucha la API | `3000` |
+| `MONGO_URL` | URI de MongoDB para desarrollo/producción | `mongodb://localhost:27017/shipnow` |
+| `MONGO_URL_TEST` | URI de MongoDB exclusiva para testing | `mongodb://localhost:27017/shipnow-test` |
+| `NODE_ENV` | Entorno de ejecución | `development` / `test` / `production` |
+| `LOG_LEVEL` | Nivel mínimo de log en consola (informativo, el logger ya diferencia por entorno) | `debug` |
+| `BASIC_AUTH_USER` | Usuario para proteger `/api/docs` y endpoints internos en producción | `dev` |
+| `BASIC_AUTH_PASSWORD` | Contraseña para lo mismo | `shipnow123` (cambiar en un despliegue real) |
+
+El proyecto **no usa JWT** (no tiene autenticación de usuarios), por lo que no hay variable de secreto de JWT. Tampoco depende de URLs de servicios externos.
+
+### Validación de variables críticas al iniciar
+
+`src/config/env.js` valida que `PORT`, `MONGO_URL` y `NODE_ENV` estén presentes **antes** de que la app arranque. Si falta alguna, el proceso termina inmediatamente con un mensaje claro:
+
+\`\`\`
+[FATAL] Faltan variables de entorno obligatorias: MONGO_URL
+Revisá tu archivo .env (podés basarte en .env.example)
+\`\`\`
+
+La app **nunca** arranca de forma incompleta o con configuración parcial.
+
+## Instalación y ejecución local
 
 \`\`\`bash
 npm install
 \`\`\`
 
-El proyecto no usa variables de entorno para la configuración de base/puerto en desarrollo; están definidas directamente en `src/server.js`:
-
-- Puerto: `3000`
-- MongoDB (desarrollo): `mongodb://localhost:27017/shipnow`
-- MongoDB (testing): `mongodb://localhost:27017/shipnow-test` (definida en `tests/setup.js`)
-
-Asegurate de tener el servicio de MongoDB corriendo localmente antes de levantar el servidor o correr los tests.
-
-## Levantar el servidor
+Creá tu `.env` copiando `.env.example` y ajustando los valores si hace falta.
 
 \`\`\`bash
 npm run dev
 \`\`\`
 
-Si todo está bien configurado, la terminal debería mostrar:
-
+Salida esperada:
 \`\`\`
-2026-08-10 19:09:09 [info]    Conexión a MongoDB establecida
-2026-08-10 19:09:09 [info]    Servidor ShipNow escuchando en el puerto 3000
+2026-09-05 19:09:09 [info]    Conexión a MongoDB establecida
+2026-09-05 19:09:09 [info]    Servidor ShipNow escuchando en el puerto 3000 (entorno: development)
 \`\`\`
-
-## Carga de archivos (Multer)
-
-### Configuración centralizada
-
-Toda la configuración de Multer vive en `src/config/multer.config.js`, completamente separada de las rutas. Define:
-
-- **Almacenamiento**: `diskStorage`, guardando cada archivo en una subcarpeta según su tipo.
-- **Nombrado**: cada archivo se renombra con un sufijo único (`timestamp-random.ext`) para evitar colisiones, conservando el nombre original solo como metadato.
-- **Tipos permitidos**: `image/jpeg`, `image/png`, `application/pdf`.
-- **Tamaño máximo**: 5 MB por archivo.
-- **Manejo de errores**: los errores propios de Multer (tamaño excedido, etc.) y los del filtro de tipos se traducen al formato de error centralizado del proyecto mediante `src/middleware/handleUpload.js`.
-
-### Estructura de carpetas
-
-\`\`\`
-uploads/
-├── users/
-│   └── documents/       # Documentos de usuario (DNI, licencia, etc.)
-├── orders/
-│   └── receipts/        # Comprobantes asociados a pedidos
-└── deliveries/
-    └── receipts/        # Comprobantes asociados a entregas
-\`\`\`
-
-La carpeta `uploads/` está en `.gitignore` — ningún archivo subido se sube al repositorio. Las subcarpetas se crean automáticamente la primera vez que se sube un archivo de ese tipo (no hace falta crearlas a mano).
-
-### Endpoints
-
-| Método | Endpoint | Campo de archivo | Descripción |
-|---|---|---|---|
-| POST | `/api/users/{uid}/documents` | `document` | Sube un documento y lo asocia al usuario. Campo adicional opcional: `documentType` (`dni`, `licencia_conducir`, `comprobante_domicilio`, `otro`) |
-| POST | `/api/orders/{oid}/receipt` | `receipt` | Sube un comprobante y lo asocia al pedido |
-| POST | `/api/deliveries/{did}/receipt` | `receipt` | Sube un comprobante y lo asocia a la entrega |
-
-### Metadatos guardados en la base
-
-En ningún caso se guarda el archivo binario en MongoDB — solo sus metadatos:
-
-\`\`\`json
-{
-  "documentType": "dni",
-  "originalName": "dni.pdf",
-  "generatedName": "1725390000000-123456789.pdf",
-  "path": "uploads/users/documents/1725390000000-123456789.pdf",
-  "mimetype": "application/pdf",
-  "size": 204800,
-  "uploadedAt": "2026-09-03T21:43:49.057Z"
-}
-\`\`\`
-
-(`documentType` solo aplica a documentos de usuario; los comprobantes de pedidos/entregas usan la misma estructura sin ese campo).
-
-### Errores específicos de archivos
-
-| Código | HTTP Status | Descripción |
-|---|---|---|
-| `FILE_REQUIRED` | 400 | No se envió ningún archivo |
-| `INVALID_FILE_TYPE` | 400 | El tipo de archivo no está permitido (solo JPG, PNG, PDF) |
-| `FILE_TOO_LARGE` | 400 | El archivo supera los 5MB |
-| `INVALID_DOCUMENT_TYPE` | 400 | El `documentType` enviado no es uno de los valores permitidos |
-| `FILE_UPLOAD_ERROR` | 500 | Error al guardar el archivo en el servidor |
-
-Todos responden con el mismo formato uniforme del resto de la API (`status`, `error`, `message`), y el logger registra cada evento relevante (`logger.info` en cargas exitosas, `logger.warning` en cargas rechazadas por validación).
-
-### Cómo probar en Postman
-
-Para probar estos endpoints en Postman, hay que usar **Body → form-data** (no `raw`/JSON), con:
-- Una clave de tipo **File** llamada `document` (o `receipt` según el endpoint), seleccionando un archivo real desde tu compu.
-- Para el endpoint de usuarios, una clave adicional de tipo **Text** llamada `documentType` (opcional).
-
-## Documentación interactiva (Swagger)
-
-### Acceso
-
-\`\`\`
-http://localhost:3000/api/docs
-\`\`\`
-
-Protegida con autenticación básica:
-
-- **Usuario:** `dev`
-- **Contraseña:** `shipnow123`
-
-### Módulos documentados (tags)
-
-| Tag | Contenido |
-|---|---|
-| **Users** | CRUD de usuarios + carga de documentos |
-| **Orders** | CRUD de pedidos, actualización de estado y carga de comprobante |
-| **Deliveries** | CRUD de entregas, actualización de estado y carga de comprobante |
-| **Mocks** | Generación de datos simulados y carga real en MongoDB |
-| **Logger** | Endpoint de diagnóstico del sistema de logging (no es funcionalidad de negocio) |
-
-Los 3 endpoints de carga de archivos están documentados como `multipart/form-data`, indicando el nombre del campo de archivo, los campos adicionales requeridos, los tipos de documento permitidos (cuando aplica), la respuesta exitosa y los posibles errores.
-
-### Schemas reutilizables
-
-Definidos en `src/docs/schemas.yaml`:
-
-- `User`, `Order`, `OrderItem`, `Delivery`
-- `DocumentMeta` — metadatos de un documento de usuario
-- `ReceiptMeta` — metadatos de un comprobante (usado en `Order.receipt` y `Delivery.receipt`)
-- `ErrorResponse`, `SuccessResponse`
 
 ## Testing
-
-### Herramientas utilizadas
-
-Mocha (organiza/ejecuta), Chai (aserciones) y Supertest (requests HTTP contra `src/app.js`, sin levantar un puerto real).
-
-### Entorno de testing separado
-
-Los tests corren contra `mongodb://localhost:27017/shipnow-test`, una base completamente distinta a la de desarrollo. `tests/setup.js` limpia todas las colecciones antes de cada test, así ningún test depende del estado dejado por otro.
-
-### Cómo ejecutar los tests
 
 \`\`\`bash
 npm test
 \`\`\`
 
-### Módulos cubiertos
+Corre `cross-env NODE_ENV=test mocha --exit tests/setup.js tests/**/*.test.js` contra una base de datos de testing completamente separada (`MONGO_URL_TEST`), que se limpia antes de cada test. 35 tests cubriendo usuarios, pedidos, entregas, mocks, logger, Swagger, carga de archivos, paginación y rutas inexistentes.
 
-| Archivo | Cubre |
+## Documentación interactiva (Swagger)
+
+\`\`\`
+http://localhost:3000/api/docs
+\`\`\`
+
+Protegida **siempre**, en cualquier entorno, con autenticación básica (`BASIC_AUTH_USER` / `BASIC_AUTH_PASSWORD`).
+
+### Módulos documentados (tags)
+
+| Tag | Contenido |
 |---|---|
-| `tests/users.test.js` | CRUD de usuarios y validaciones |
-| `tests/orders.test.js` | CRUD de pedidos, actualización de estado y reglas de negocio |
-| `tests/mocks.test.js` | Generación de mocks y validación de cantidades inválidas |
-| `tests/logger.test.js` | Endpoint de diagnóstico del logger |
-| `tests/docs.test.js` | Acceso a Swagger (con y sin credenciales) |
-| `tests/routes.test.js` | Ruta inexistente → 404 |
-| `tests/uploads.test.js` | Carga de documento de usuario (éxito, archivo faltante, tipo de documento inválido, tipo de archivo inválido, usuario inexistente); carga de comprobante en pedidos y entregas (éxito y entidad inexistente) |
+| **Users** | CRUD de usuarios, listado paginado, carga de documentos |
+| **Orders** | CRUD de pedidos, listado paginado, actualización de estado, carga de comprobante |
+| **Deliveries** | CRUD de entregas, listado paginado, actualización de estado, carga de comprobante |
+| **Mocks** | Generación de datos simulados y carga real en MongoDB |
+| **Logger** | Endpoint de diagnóstico del sistema de logging (no es funcionalidad de negocio) |
 
-Los tests de carga de archivos usan `supertest`'s `.attach()` para simular la subida de un archivo real (un `Buffer` en memoria con distintos `contentType`), sin depender de archivos físicos en el repositorio.
+### Schemas reutilizables
+
+Definidos en `src/docs/schemas.yaml`: `User`, `Order`, `OrderItem`, `Delivery`, `DocumentMeta`, `ReceiptMeta`, `ErrorResponse`, `SuccessResponse`.
+
+## Performance
+
+### Paginación en listados
+
+`GET /api/users`, `GET /api/orders` y `GET /api/deliveries` ya no devuelven la colección completa: aceptan los query params `page` y `limit`, con un **límite máximo de 50** resultados por página (aunque se pida más), evitando respuestas de tamaño descontrolado.
+
+Ejemplo:
+\`\`\`
+GET /api/orders?page=1&limit=10
+\`\`\`
+\`\`\`json
+{
+  "items": [ ... ],
+  "page": 1,
+  "limit": 10,
+  "total": 41,
+  "totalPages": 5
+}
+\`\`\`
+
+### Carga de archivos
+
+Ya limitada desde el Módulo 7: tamaño máximo 5MB, tipos restringidos (JPG, PNG, PDF), errores controlados, y los archivos se guardan fuera del repositorio (`uploads/`, en `.gitignore`), nunca en la base de datos ni usados como almacenamiento permanente indiscriminado.
+
+### Otras prácticas aplicadas
+
+- Consultas a Mongo siempre acotadas (`.skip()` + `.limit()` en los listados, `findById` en el resto — nunca un `find()` sin filtro que devuelva todo).
+- El logger diferencia niveles por entorno (`debug` solo en desarrollo), evitando logs excesivos en producción.
+- Las operaciones de carga de archivos usan `diskStorage` de Multer, que es asíncrono por naturaleza (no bloquea el Event Loop).
+
+## Preparación para producción
+
+### Health check
+
+\`\`\`
+GET /api/health
+\`\`\`
+\`\`\`json
+{
+  "status": "ok",
+  "environment": "development",
+  "uptime": 19,
+  "timestamp": "2026-09-05T21:14:38.240Z"
+}
+\`\`\`
+
+No expone URIs, credenciales, versiones de dependencias ni ningún dato sensible — solo estado general, entorno, tiempo activo y timestamp. Es una ruta pública, sin autenticación, para que cualquier orquestador (Docker, balanceador, monitor externo) pueda verificarla sin fricción.
+
+### Criterio sobre endpoints internos
+
+| Endpoint | Desarrollo | Producción |
+|---|---|---|
+| `/api/docs` | Protegido con `basicAuth` | Protegido con `basicAuth` (igual) |
+| `/api/loggerTest` | Libre, sin restricción | Protegido con `basicAuth` |
+| `/api/mocks/*` | Libre, sin restricción | Protegido con `basicAuth` |
+
+**Criterio aplicado:** los endpoints internos (mocks, prueba de logger, documentación) no se bloquean por completo en producción porque siguen siendo útiles para diagnóstico y soporte, pero se les exige autenticación básica para que no queden expuestos públicamente sin control. El resto de la API (`/api/users`, `/api/orders`, `/api/deliveries`, `/api/health`) no cambia su comportamiento entre entornos.
+
+## Docker
+
+### Archivos
+
+- **`Dockerfile`**: imagen base `node:20-alpine`, copia el proyecto, instala solo dependencias de producción (`npm install --omit=dev`), expone el puerto `3000` y ejecuta `node src/server.js`.
+- **`.dockerignore`**: excluye `node_modules`, `.env`, `.git`, `logs`, `uploads`, `coverage`, `tests` y archivos temporales — la imagen nunca incluye credenciales, datos generados en runtime ni archivos innecesarios.
+
+### Construir la imagen
+
+\`\`\`bash
+docker build -t shipnow-api .
+\`\`\`
+
+### Ejecutar el contenedor
+
+\`\`\`bash
+docker run -p 3000:3000 --env-file .env -e MONGO_URL=mongodb://host.docker.internal:27017/shipnow shipnow-api
+\`\`\`
+
+**Nota:** si MongoDB corre en tu máquina host (fuera de Docker, como servicio de Windows/Mac/Linux), el contenedor no puede usar `localhost` para llegar a él — hay que usar `host.docker.internal`, que apunta a la máquina anfitriona desde dentro del contenedor. Por eso se sobreescribe `MONGO_URL` en el comando de arriba, aunque el `.env` tenga `localhost` para uso local normal.
+
+### Verificar que el contenedor funciona
+
+Con el contenedor corriendo, probar:
+
+\`\`\`
+GET http://localhost:3000/api/health
+GET http://localhost:3000/api/docs        (pide basicAuth)
+GET http://localhost:3000/api/orders
+\`\`\`
+
+Los tres deberían responder igual que en ejecución local.
+
+### Puerto usado
+
+La API queda disponible en el puerto **3000** tanto en ejecución local como dentro del contenedor.
+
+## Qué no se sube al repositorio
+
+- `node_modules/` — dependencias, se reinstalan con `npm install`.
+- `.env` — variables de entorno reales, incluye la contraseña de `basicAuth`. Se sube solo `.env.example` como plantilla sin valores sensibles reales.
+- `logs/` — archivos de log generados por Winston en runtime, con rotación diaria. No aportan valor en el repositorio y pueden crecer sin límite si no se controla su ciclo de vida.
+- `uploads/` — archivos subidos por los usuarios (documentos, comprobantes). Son datos generados en runtime, no código fuente; además podrían contener información sensible de usuarios reales en un entorno productivo.
 
 ## Manejo de errores
 
@@ -176,6 +192,13 @@ Los tests de carga de archivos usan `supertest`'s `.attach()` para simular la su
   "message": "Descripción legible del error"
 }
 \`\`\`
+
+### Cómo funciona internamente
+
+1. Los `services` detectan errores de negocio y lanzan `throw new customError(CÓDIGO)`.
+2. Las `routes` están envueltas en `asyncHandler`, que deriva cualquier error con `next(error)`.
+3. Un middleware catch-all convierte cualquier ruta inexistente en `ROUTE_NOT_FOUND`.
+4. El middleware global `errorHandler` arma la respuesta HTTP final y registra el evento con Winston (`warning` para errores esperados, `error` para no controlados).
 
 ### Diccionario de errores (`ERROR_CODES`)
 
@@ -205,18 +228,46 @@ Los tests de carga de archivos usan `supertest`'s `.attach()` para simular la su
 
 ## Logging con Winston
 
-Winston con `winston-daily-rotate-file` (`src/utils/logger.js`), 6 niveles: `debug`, `http`, `info`, `warning`, `error`, `fatal`. Se usa en `server.js`, `errorHandler.js`, y todos los `services` (incluyendo las nuevas cargas de archivos: `logger.info` en cargas exitosas, `logger.warning` propagado vía `errorHandler` en cargas rechazadas).
+Winston con `winston-daily-rotate-file` (`src/utils/logger.js`), 6 niveles: `debug`, `http`, `info`, `warning`, `error`, `fatal`. Integrado en `server.js`, `errorHandler.js` y todos los `services`.
 
 - **Desarrollo**: consola muestra todos los niveles.
-- **Producción** (`NODE_ENV=production`): consola muestra solo desde `info`.
-- **Persistencia**: `error` y `fatal` en `logs/errors-FECHA.log`, rotación diaria, retención 14 días.
+- **Producción**: consola muestra solo desde `info`.
+- **Persistencia**: `error` y `fatal` en `logs/errors-FECHA.log`, rotación diaria, retención 14 días. Carpeta ignorada por Git.
 
-## Cómo probar casos inválidos en Postman
+## Módulo de mocking (`/api/mocks`)
+
+| Método | Endpoint | Query/Body | Descripción |
+|---|---|---|---|
+| GET | `/api/mocks/mockingusers` | `count` (opcional) | Genera usuarios simulados (no persiste) |
+| GET | `/api/mocks/mockingorders` | `count` (opcional) | Genera pedidos simulados (no persiste) |
+| GET | `/api/mocks/mockingdeliveries` | `count` (opcional) | Genera entregas simuladas (no persiste) |
+| POST | `/api/mocks/generateData` | `{ "users": 10, "orders": 15, "deliveries": 15 }` | Inserta datos reales en MongoDB respetando relaciones |
+
+En producción, estos endpoints requieren `basicAuth` (ver sección "Criterio sobre endpoints internos").
+
+## Carga de archivos (Multer)
+
+| Método | Endpoint | Campo de archivo | Descripción |
+|---|---|---|---|
+| POST | `/api/users/{uid}/documents` | `document` | Sube un documento (DNI, licencia, etc.) y lo asocia al usuario |
+| POST | `/api/orders/{oid}/receipt` | `receipt` | Sube un comprobante y lo asocia al pedido |
+| POST | `/api/deliveries/{did}/receipt` | `receipt` | Sube un comprobante y lo asocia a la entrega |
+
+Tipos permitidos: JPG, PNG, PDF. Tamaño máximo: 5MB. Los archivos se guardan en `uploads/`, organizados por subcarpeta, y solo sus metadatos (nombre original, nombre generado, ruta, tipo, tamaño, fecha) quedan en la base de datos.
+
+## Cómo probar casos inválidos y nuevos comportamientos en Postman
 
 ### 1. Recurso inexistente → 404
 
 \`\`\`
 GET http://localhost:3000/api/orders/64b000000000000000000000
+\`\`\`
+\`\`\`json
+{
+  "status": "error",
+  "error": "ORDER_NOT_FOUND",
+  "message": "Pedido no encontrado"
+}
 \`\`\`
 
 ### 2. Datos obligatorios faltantes → 400
@@ -227,18 +278,45 @@ Content-Type: application/json
 
 { "customer": "64b000000000000000000000" }
 \`\`\`
+\`\`\`json
+{
+  "status": "error",
+  "error": "VALIDATION_ERROR",
+  "message": "Faltan los items del pedido"
+}
+\`\`\`
 
 ### 3. Ruta inexistente → 404
 
 \`\`\`
 GET http://localhost:3000/api/blabla
 \`\`\`
+\`\`\`json
+{
+  "status": "error",
+  "error": "ROUTE_NOT_FOUND",
+  "message": "La ruta GET /api/blabla no existe"
+}
+\`\`\`
 
-### 4. Carga de documento sin archivo → 400
+### 4. Mocks — cantidad inválida → 400
+
+\`\`\`
+GET http://localhost:3000/api/mocks/mockingusers?count=abc
+\`\`\`
+\`\`\`json
+{
+  "status": "error",
+  "error": "INVALID_MOCK_QUANTITY",
+  "message": "El parámetro \"count\" debe ser un número entero mayor a 0 (recibido: \"abc\")"
+}
+\`\`\`
+
+### 5. Carga de documento sin archivo → 400
 
 \`\`\`
 POST http://localhost:3000/api/users/{uid}/documents
-Body: form-data, solo con el campo de texto "documentType", sin adjuntar archivo
+Body: form-data, solo con "documentType", sin adjuntar archivo
 \`\`\`
 \`\`\`json
 {
@@ -248,30 +326,45 @@ Body: form-data, solo con el campo de texto "documentType", sin adjuntar archivo
 }
 \`\`\`
 
-### 5. Carga de documento con tipo inválido → 400
+### 6. Paginación — listado con límite personalizado
 
 \`\`\`
-POST http://localhost:3000/api/users/{uid}/documents
-Body: form-data, campo "document" con un archivo .exe
+GET http://localhost:3000/api/orders?page=1&limit=5
 \`\`\`
 \`\`\`json
 {
-  "status": "error",
-  "error": "INVALID_FILE_TYPE",
-  "message": "Tipo de archivo no permitido: application/x-msdownload. Permitidos: JPG, PNG, PDF"
+  "items": [ ],
+  "page": 1,
+  "limit": 5,
+  "total": 41,
+  "totalPages": 9
 }
 \`\`\`
 
-### 6. Comprobante sobre una entidad inexistente → 404
+### 7. Health check → 200
 
 \`\`\`
-POST http://localhost:3000/api/orders/64b000000000000000000000/receipt
-Body: form-data, campo "receipt" con un archivo válido
+GET http://localhost:3000/api/health
+\`\`\`
+\`\`\`json
+{
+  "status": "ok",
+  "environment": "development",
+  "uptime": 19,
+  "timestamp": "2026-09-05T21:14:38.240Z"
+}
+\`\`\`
+
+### 8. Endpoint interno sin credenciales en producción → 401
+
+Con `NODE_ENV=production`:
+\`\`\`
+GET http://localhost:3000/api/mocks/mockingusers?count=3
 \`\`\`
 \`\`\`json
 {
   "status": "error",
-  "error": "ORDER_NOT_FOUND",
-  "message": "Pedido no encontrado"
+  "error": "UNAUTHORIZED",
+  "message": "Credenciales requeridas para acceder a la documentación"
 }
 \`\`\`

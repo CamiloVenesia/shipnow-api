@@ -9,8 +9,8 @@ const router = Router();
 const receiptUploader = createUploader('deliveries/receipts');
 
 router.get('/', asyncHandler(async (req, res) => {
-    const deliveries = await deliveryService.getAll();
-    res.json(deliveries);
+    const result = await deliveryService.getAll(req.query);
+    res.json(result);
 }));
 
 router.get('/:did', asyncHandler(async (req, res) => {

@@ -1,15 +1,13 @@
 import mongoose from 'mongoose';
 import app from './app.js';
+import { config } from './config/env.js';
 import logger from './utils/logger.js';
 
-const PORT = 3000;
-const MONGODB_URI = 'mongodb://localhost:27017/shipnow';
-
-mongoose.connect(MONGODB_URI)
+mongoose.connect(config.mongoUrl)
   .then(() => {
     logger.info('Conexión a MongoDB establecida');
-    app.listen(PORT, () => {
-      logger.info(`Servidor ShipNow escuchando en el puerto ${PORT}`);
+    app.listen(config.port, () => {
+      logger.info(`Servidor ShipNow escuchando en el puerto ${config.port} (entorno: ${config.nodeEnv})`);
     });
   })
   .catch((error) => {

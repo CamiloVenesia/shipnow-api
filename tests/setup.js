@@ -6,7 +6,10 @@ import Order from '../src/models/order.model.js';
 import Delivery from '../src/models/delivery.model.js';
 import Product from '../src/models/product.model.js';
 
-const TEST_MONGO_URI = 'mongodb://localhost:27017/shipnow-test';
+import dotenv from 'dotenv';
+dotenv.config();
+
+const TEST_MONGO_URI = process.env.MONGO_URL_TEST || 'mongodb://localhost:27017/shipnow-test';
 
 before(async () => {
     await mongoose.connect(TEST_MONGO_URI);

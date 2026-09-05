@@ -12,8 +12,9 @@ describe('Users API', () => {
             const response = await request(app).get('/api/users');
 
             expect(response.status).to.equal(200);
-            expect(response.body).to.be.an('array');
-            expect(response.body).to.have.length(0);
+            expect(response.body).to.have.property('items');
+            expect(response.body.items).to.be.an('array');
+            expect(response.body.items).to.have.length(0);
         });
 
         it('debería devolver los usuarios existentes', async () => {
@@ -28,8 +29,27 @@ describe('Users API', () => {
             const response = await request(app).get('/api/users');
 
             expect(response.status).to.equal(200);
-            expect(response.body).to.have.length(1);
-            expect(response.body[0]).to.have.property('email', 'ana@mail.com');
+            expect(response.body.items).to.have.length(1);
+            expect(response.body.items[0]).to.have.property('email', 'ana@mail.com');
+        });
+
+        it('debería respetar el parámetro limit', async () => {
+            for (let i = 0; i < 3; i++) {
+                await User.create({
+                    firstName: `User${i}`,
+                    lastName: 'Test',
+                    email: `user${i}-${Date.now()}@mail.com`,
+                    password: '12345678'
+                });
+            }
+
+            const response = await request(app).get('/api/users?limit=2');
+
+            expect(response.status).to.equal(200);
+            expect(response.body.items).to.have.length(2);
+            expect(response.body.limit).to.equal(2);
+            expect(response.body.total).to.equal(3);
+            expect(response.body.totalPages).to.equal(2);
         });
     });
 

@@ -8,8 +8,8 @@ const router = Router();
 const documentUploader = createUploader('users/documents');
 
 router.get('/', asyncHandler(async (req, res) => {
-    const users = await userService.getAll();
-    res.json(users);
+    const result = await userService.getAll(req.query);
+    res.json(result);
 }));
 
 router.get('/:uid', asyncHandler(async (req, res) => {

@@ -8,8 +8,24 @@ import logger from '../utils/logger.js'
 
 export const orderService = {
 
-    async getAll() {
-        return await Order.find()
+    async getAll({ page = 1, limit = 10 } = {}) {
+        const pageNum = Math.max(1, parseInt(page, 10) || 1);
+        const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 10));
+
+        const [items, total] = await Promise.all([
+            Order.find()
+                .skip((pageNum - 1) * limitNum)
+                .limit(limitNum),
+            Order.countDocuments()
+        ]);
+
+        return {
+            items,
+            page: pageNum,
+            limit: limitNum,
+            total,
+            totalPages: Math.ceil(total / limitNum)
+        };
     },
 
     async getById(oid) {

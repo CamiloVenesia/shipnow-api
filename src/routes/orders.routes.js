@@ -9,8 +9,8 @@ const receiptUploader = createUploader('orders/receipts');
 
 // GET /api/orders
 router.get('/', asyncHandler(async (req, res) => {
-    const orders = await orderService.getAll();
-    res.json(orders);
+    const result = await orderService.getAll(req.query);
+    res.json(result);
 }));
 
 // GET /api/orders/:oid
