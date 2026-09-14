@@ -2,16 +2,8 @@
 
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
+import { config } from '../config/env.js';
 
-/**
- * Niveles personalizados de ShipNow API.
- *
- * Nota técnica: en Winston, el NÚMERO MÁS BAJO = MAYOR SEVERIDAD/PRIORIDAD.
- * Por eso "fatal" (el más grave) tiene el número más chico y "debug"
- * (el más detallado, menos grave) el número más alto. Esto es lo que
- * permite que, al configurar level: 'info', se muestren info/warning/
- * error/fatal pero NO debug ni http.
- */
 const customLevels = {
     levels: {
         fatal: 0,
@@ -33,9 +25,8 @@ const customLevels = {
 
 winston.addColors(customLevels.colors);
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = config.nodeEnv === 'production';
 
-// ---------- Formato para consola (con colores) ----------
 const consoleFormat = winston.format.combine(
     winston.format.colorize({ all: true }),
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
@@ -44,7 +35,6 @@ const consoleFormat = winston.format.combine(
     })
 );
 
-// ---------- Formato para archivo (sin colores, más parseable) ----------
 const fileFormat = winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     winston.format.printf(({ timestamp, level, message }) => {
@@ -52,32 +42,46 @@ const fileFormat = winston.format.combine(
     })
 );
 
-// ---------- Transporte de consola ----------
-// Desarrollo: muestra TODO (incluye debug).
-// Producción: muestra desde info en adelante (info, warning, error, fatal).
-const consoleTransport = new winston.transports.Console({
-    level: isProduction ? 'info' : 'debug',
-    format: consoleFormat
-});
+const transports = [];
 
-// ---------- Transporte de archivo con rotación diaria ----------
-// Solo persiste error y fatal (level: 'error' incluye todo lo que tenga
-// número <= 1, es decir: fatal(0) y error(1)).
-const fileRotateTransport = new DailyRotateFile({
-    level: 'error',
-    dirname: 'logs',
-    filename: 'errors-%DATE%.log',
-    datePattern: 'YYYY-MM-DD',
-    maxFiles: '14d',
-    format: fileFormat
-});
+// Consola: SOLO en desarrollo (y test, para no perder feedback al debuggear tests).
+// En producción, la salida por consola queda completamente desactivada.
+if (!isProduction) {
+    transports.push(
+        new winston.transports.Console({
+            level: 'debug',
+            format: consoleFormat
+        })
+    );
+}
+
+// combined.log: TODA la actividad (info en adelante), con rotación diaria.
+transports.push(
+    new DailyRotateFile({
+        level: 'info',
+        dirname: 'logs',
+        filename: 'combined-%DATE%.log',
+        datePattern: 'YYYY-MM-DD',
+        maxFiles: '14d',
+        format: fileFormat
+    })
+);
+
+// error.log: SOLO error y fatal, con rotación diaria.
+transports.push(
+    new DailyRotateFile({
+        level: 'error',
+        dirname: 'logs',
+        filename: 'error-%DATE%.log',
+        datePattern: 'YYYY-MM-DD',
+        maxFiles: '14d',
+        format: fileFormat
+    })
+);
 
 const logger = winston.createLogger({
     levels: customLevels.levels,
-    transports: [
-        consoleTransport,
-        fileRotateTransport
-    ]
+    transports
 });
 
 export default logger;

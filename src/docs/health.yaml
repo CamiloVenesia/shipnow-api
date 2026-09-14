@@ -1,0 +1,29 @@
+paths:
+  /api/health:
+    get:
+      summary: Verificar el estado de la API (health check)
+      description: Endpoint público, sin autenticación, pensado para que un orquestador (Docker, balanceador de carga, monitor externo) pueda verificar que la API está operativa. No expone información sensible (sin URIs, credenciales ni versiones de dependencias).
+      tags:
+        - Health
+      responses:
+        "200":
+          description: La API está operativa
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  environment:
+                    type: string
+                    example: development
+                  uptime:
+                    type: integer
+                    description: Segundos que lleva corriendo el proceso
+                    example: 3600
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2026-09-12T21:14:38.240Z"

@@ -1,7 +1,7 @@
 // src/services/order.service.js
 
-import Order from '../models/order.model.js'
-import User from '../models/user.model.js'
+import { orderRepository } from '../repositories/order.repository.js'
+import { userRepository } from '../repositories/user.repository.js'
 import { customError } from '../utils/customError.js'
 import { ERROR_CODES } from '../constants/error.constants.js'
 import logger from '../utils/logger.js'
@@ -9,15 +9,13 @@ import logger from '../utils/logger.js'
 export const orderService = {
 
     async getAll({ page = 1, limit = 10 } = {}) {
-        const pageNum = Math.max(1, parseInt(page, 10) || 1);
-        const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 10));
+        const pageNum = Math.max(1, parseInt(page, 10) || 1)
+        const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 10))
 
         const [items, total] = await Promise.all([
-            Order.find()
-                .skip((pageNum - 1) * limitNum)
-                .limit(limitNum),
-            Order.countDocuments()
-        ]);
+            orderRepository.findAll({ skip: (pageNum - 1) * limitNum, limit: limitNum }),
+            orderRepository.count()
+        ])
 
         return {
             items,
@@ -25,11 +23,11 @@ export const orderService = {
             limit: limitNum,
             total,
             totalPages: Math.ceil(total / limitNum)
-        };
+        }
     },
 
     async getById(oid) {
-        const order = await Order.findById(oid)
+        const order = await orderRepository.findById(oid)
         if (!order) {
             throw new customError(ERROR_CODES.ORDER_NOT_FOUND)
         }
@@ -47,7 +45,7 @@ export const orderService = {
             throw new customError(ERROR_CODES.VALIDATION_ERROR, 'Falta la dirección de entrega')
         }
 
-        const user = await User.findById(customer)
+        const user = await userRepository.findById(customer)
         if (!user) {
             throw new customError(ERROR_CODES.USER_NOT_FOUND)
         }
@@ -58,7 +56,7 @@ export const orderService = {
 
         const total = items.reduce((acc, item) => acc + item.price * item.quantity, 0)
 
-        const newOrder = await Order.create({
+        const newOrder = await orderRepository.create({
             customer,
             items,
             deliveryAddress,
@@ -67,10 +65,8 @@ export const orderService = {
             status: 'created'
         })
 
-        // Simulación de side-effects
         logger.info(`[EMAIL SIMULADO] Enviando confirmación al usuario ${customer}...`)
         logger.info(`[EMAIL SIMULADO] Tu pedido ${newOrder._id} fue creado. Total: $${total}`)
-
         logger.info(`Pedido creado: ${newOrder._id} (cliente: ${customer}, total: $${total})`)
 
         const shippingCost = newOrder.items.reduce((acc, item) => acc + (item.quantity * 10), 0)
@@ -83,7 +79,7 @@ export const orderService = {
             throw new customError(ERROR_CODES.VALIDATION_ERROR, 'El estado es obligatorio')
         }
 
-        const order = await Order.findById(oid)
+        const order = await orderRepository.findById(oid)
         if (!order) {
             throw new customError(ERROR_CODES.ORDER_NOT_FOUND)
         }
@@ -93,7 +89,7 @@ export const orderService = {
         }
 
         order.status = status
-        await order.save()
+        await orderRepository.save(order)
 
         logger.info(`Pedido ${order._id} actualizado a estado: ${status}`)
 
@@ -101,7 +97,7 @@ export const orderService = {
     },
 
     async remove(oid) {
-        const order = await Order.findByIdAndDelete(oid)
+        const order = await orderRepository.deleteById(oid)
         if (!order) {
             throw new customError(ERROR_CODES.ORDER_NOT_FOUND)
         }
@@ -113,7 +109,7 @@ export const orderService = {
             throw new customError(ERROR_CODES.FILE_REQUIRED, 'Debe adjuntar un archivo (campo "receipt")')
         }
 
-        const order = await Order.findById(oid)
+        const order = await orderRepository.findById(oid)
         if (!order) {
             throw new customError(ERROR_CODES.ORDER_NOT_FOUND)
         }
@@ -127,7 +123,7 @@ export const orderService = {
             uploadedAt: new Date()
         }
 
-        await order.save()
+        await orderRepository.save(order)
 
         logger.info(`Comprobante asociado al pedido ${oid}: ${file.originalname}`)
 

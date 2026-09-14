@@ -1,6 +1,6 @@
 // src/services/user.service.js
 
-import User from '../models/user.model.js'
+import { userRepository } from '../repositories/user.repository.js'
 import { customError } from '../utils/customError.js'
 import { ERROR_CODES } from '../constants/error.constants.js'
 import { ALLOWED_DOCUMENT_TYPES } from '../config/multer.config.js'
@@ -9,15 +9,13 @@ import logger from '../utils/logger.js'
 export const userService = {
 
     async getAll({ page = 1, limit = 10 } = {}) {
-        const pageNum = Math.max(1, parseInt(page, 10) || 1);
-        const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 10));
+        const pageNum = Math.max(1, parseInt(page, 10) || 1)
+        const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 10))
 
         const [items, total] = await Promise.all([
-            User.find()
-                .skip((pageNum - 1) * limitNum)
-                .limit(limitNum),
-            User.countDocuments()
-        ]);
+            userRepository.findAll({ skip: (pageNum - 1) * limitNum, limit: limitNum }),
+            userRepository.count()
+        ])
 
         return {
             items,
@@ -25,11 +23,11 @@ export const userService = {
             limit: limitNum,
             total,
             totalPages: Math.ceil(total / limitNum)
-        };
+        }
     },
 
     async getById(uid) {
-        const user = await User.findById(uid)
+        const user = await userRepository.findById(uid)
         if (!user) {
             throw new customError(ERROR_CODES.USER_NOT_FOUND)
         }
@@ -45,12 +43,12 @@ export const userService = {
             throw new customError(ERROR_CODES.FORBIDDEN)
         }
 
-        const existingUser = await User.findOne({ email })
+        const existingUser = await userRepository.findByEmail(email)
         if (existingUser) {
             throw new customError(ERROR_CODES.USER_ALREADY_EXIST)
         }
 
-        return await User.create({
+        return await userRepository.create({
             firstName,
             lastName,
             email,
@@ -60,7 +58,7 @@ export const userService = {
     },
 
     async remove(uid) {
-        const user = await User.findByIdAndDelete(uid)
+        const user = await userRepository.deleteById(uid)
         if (!user) {
             throw new customError(ERROR_CODES.USER_NOT_FOUND)
         }
@@ -76,7 +74,7 @@ export const userService = {
             throw new customError(ERROR_CODES.INVALID_DOCUMENT_TYPE, `Tipo de documento inválido: ${documentType}`)
         }
 
-        const user = await User.findById(uid)
+        const user = await userRepository.findById(uid)
         if (!user) {
             throw new customError(ERROR_CODES.USER_NOT_FOUND)
         }
@@ -91,7 +89,7 @@ export const userService = {
             uploadedAt: new Date()
         })
 
-        await user.save()
+        await userRepository.save(user)
 
         logger.info(`Documento cargado para usuario ${uid}: ${file.originalname} (${documentType || 'otro'})`)
 

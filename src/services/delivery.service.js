@@ -1,8 +1,8 @@
 // src/services/delivery.service.js
 
-import Delivery from '../models/delivery.model.js'
-import Order from '../models/order.model.js'
-import User from '../models/user.model.js'
+import { deliveryRepository } from '../repositories/delivery.repository.js'
+import { orderRepository } from '../repositories/order.repository.js'
+import { userRepository } from '../repositories/user.repository.js'
 import { customError } from '../utils/customError.js'
 import { ERROR_CODES } from '../constants/error.constants.js'
 import logger from '../utils/logger.js'
@@ -10,15 +10,13 @@ import logger from '../utils/logger.js'
 export const deliveryService = {
 
     async getAll({ page = 1, limit = 10 } = {}) {
-        const pageNum = Math.max(1, parseInt(page, 10) || 1);
-        const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 10));
+        const pageNum = Math.max(1, parseInt(page, 10) || 1)
+        const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 10))
 
         const [items, total] = await Promise.all([
-            Delivery.find()
-                .skip((pageNum - 1) * limitNum)
-                .limit(limitNum),
-            Delivery.countDocuments()
-        ]);
+            deliveryRepository.findAll({ skip: (pageNum - 1) * limitNum, limit: limitNum }),
+            deliveryRepository.count()
+        ])
 
         return {
             items,
@@ -26,11 +24,11 @@ export const deliveryService = {
             limit: limitNum,
             total,
             totalPages: Math.ceil(total / limitNum)
-        };
+        }
     },
 
     async getById(did) {
-        const delivery = await Delivery.findById(did)
+        const delivery = await deliveryRepository.findById(did)
         if (!delivery) {
             throw new customError(ERROR_CODES.DELIVERY_NOT_FOUND)
         }
@@ -45,12 +43,12 @@ export const deliveryService = {
             throw new customError(ERROR_CODES.VALIDATION_ERROR, 'El repartidor es obligatorio')
         }
 
-        const existingOrder = await Order.findById(order)
+        const existingOrder = await orderRepository.findById(order)
         if (!existingOrder) {
             throw new customError(ERROR_CODES.ORDER_NOT_FOUND, 'El pedido no existe')
         }
 
-        const existingDriver = await User.findById(driver)
+        const existingDriver = await userRepository.findById(driver)
         if (!existingDriver) {
             throw new customError(ERROR_CODES.USER_NOT_FOUND, 'El repartidor no existe')
         }
@@ -63,7 +61,7 @@ export const deliveryService = {
             throw new customError(ERROR_CODES.ORDER_ALREADY_DELIVERED, 'El pedido ya fue asignado o procesado')
         }
 
-        const newDelivery = await Delivery.create({
+        const newDelivery = await deliveryRepository.create({
             order,
             driver,
             priority: priority || 'normal',
@@ -71,10 +69,9 @@ export const deliveryService = {
             assignedAt: new Date()
         })
 
-        await Order.findByIdAndUpdate(order, {
-            status: 'assigned',
-            delivery: newDelivery._id
-        })
+        existingOrder.status = 'assigned'
+        existingOrder.delivery = newDelivery._id
+        await orderRepository.save(existingOrder)
 
         logger.info(`Entrega ${newDelivery._id} creada para el pedido ${order}`)
 
@@ -82,7 +79,7 @@ export const deliveryService = {
     },
 
     async updateStatus(did, status) {
-        const delivery = await Delivery.findById(did)
+        const delivery = await deliveryRepository.findById(did)
         if (!delivery) {
             throw new customError(ERROR_CODES.DELIVERY_NOT_FOUND)
         }
@@ -95,10 +92,14 @@ export const deliveryService = {
 
         if (status === 'delivered') {
             delivery.deliveredAt = new Date()
-            await Order.findByIdAndUpdate(delivery.order, { status: 'delivered' })
+            const relatedOrder = await orderRepository.findById(delivery.order)
+            if (relatedOrder) {
+                relatedOrder.status = 'delivered'
+                await orderRepository.save(relatedOrder)
+            }
         }
 
-        await delivery.save()
+        await deliveryRepository.save(delivery)
 
         logger.info(`Entrega ${delivery._id} actualizada a: ${status}`)
 
@@ -106,7 +107,7 @@ export const deliveryService = {
     },
 
     async remove(did) {
-        const delivery = await Delivery.findByIdAndDelete(did)
+        const delivery = await deliveryRepository.deleteById(did)
         if (!delivery) {
             throw new customError(ERROR_CODES.DELIVERY_NOT_FOUND)
         }
@@ -118,7 +119,7 @@ export const deliveryService = {
             throw new customError(ERROR_CODES.FILE_REQUIRED, 'Debe adjuntar un archivo (campo "receipt")')
         }
 
-        const delivery = await Delivery.findById(did)
+        const delivery = await deliveryRepository.findById(did)
         if (!delivery) {
             throw new customError(ERROR_CODES.DELIVERY_NOT_FOUND)
         }
@@ -132,7 +133,7 @@ export const deliveryService = {
             uploadedAt: new Date()
         }
 
-        await delivery.save()
+        await deliveryRepository.save(delivery)
 
         logger.info(`Comprobante asociado a la entrega ${did}: ${file.originalname}`)
 

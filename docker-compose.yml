@@ -1,0 +1,32 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: shipnow-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  api:
+    build: .
+    container_name: shipnow-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/shipnow
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo_data:

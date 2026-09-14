@@ -1,7 +1,6 @@
 // src/middleware/basicAuth.js
 
-const SWAGGER_USER = 'dev';
-const SWAGGER_PASSWORD = 'shipnow123';
+import { config } from '../config/env.js';
 
 export function basicAuth(req, res, next) {
     const authHeader = req.headers.authorization;
@@ -18,7 +17,7 @@ export function basicAuth(req, res, next) {
     const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
     const [user, password] = credentials.split(':');
 
-    if (user === SWAGGER_USER && password === SWAGGER_PASSWORD) {
+    if (user === config.basicAuthUser && password === config.basicAuthPassword) {
         return next();
     }
 
